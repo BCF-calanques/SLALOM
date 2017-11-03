@@ -1,0 +1,5 @@
+Number;ID;Quality;Score;Start;End
+1;ABC;Good;0.76;17;55
+2;ABC;Good;1.02;58;70
+3;DEF;Good;1.21;12;28
+4;XYZ;Bad;0.18;101;108
