@@ -889,7 +889,7 @@ class BasicBooleanSequenceCalculator(BasicSequenceCalculator):
                             elif self.opt.site_difference == 'discrepant':
                                 if (length_perc_1 == 100) and (length_perc_2 == 100):
                                     continue
-                            list_ = [self.current_seq.GID] if self.opt.grouped else []
+                            list_ = [self.current_seq.GID] if self.opt.group_map else []
                             list_.extend([self.current_seq.SID, self.global_state.anno_short_name[i], site[0], site[1]])
                             if self.opt.site_names:
                                 list_.append(site[2])
@@ -924,7 +924,7 @@ class BasicBooleanSequenceCalculator(BasicSequenceCalculator):
                     if site_file_h is not None:
                         if found_match and (self.opt.site_difference == 'unmatched'):
                             continue
-                        list_ = [self.current_seq.GID] if self.opt.grouped else []
+                        list_ = [self.current_seq.GID] if self.opt.group_map else []
                         list_.extend([self.current_seq.SID, self.global_state.anno_short_name[i], site[0], site[1]])
                         if self.opt.site_names:
                             list_.append(site[2])
@@ -1366,7 +1366,7 @@ class DataProcessor:
             if type_ == 'detailed':
                 pass
             elif type_ == 'site':
-                header = ('Group\t' if self.opt.grouped else '') + 'Sequence\tAnnotation\tSite begin\tSite end\t'
+                header = ('Group\t' if self.opt.group_map else '') + 'Sequence\tAnnotation\tSite begin\tSite end\t'
                 if self.opt.site_names:
                     header += 'Site name\t'
                 if self.opt.overlap_apply == 'patched':

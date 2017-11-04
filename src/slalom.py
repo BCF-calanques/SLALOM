@@ -7,7 +7,7 @@ if __name__ != '__main__':
 
 #Parsing input arguments
 usage = '%(prog)s [options] [-s SEQ_LEN_DB_FILE] [-m GROUP_MAP_FILE] -a1 ANNO_1_FILE -a2 ANNO_2_FILE -o OUTPUT_FILE'
-version = '%(prog)s SLALOM version 2.0b'
+version = '%(prog)s SLALOM version 2.0.1b'
 arg_parser = argparse.ArgumentParser(usage = usage, allow_abbrev = False, formatter_class=CustomHelpFormatter)
 arg_parser._optionals.title = None
 arg_parser.description = 'Welcome to SLALOM (StatisticaL Analysis of Locus Overlap Method)! Abbreviations: SID = sequence identifier; GID = group identifier'
@@ -72,7 +72,7 @@ input_alternatives.add_argument('-a2ag', '--anno2file_all_groups', dest = 'anno2
 input_alternatives.add_argument('-sg', '--sequences_as_groups', dest = 'sequences_as_groups', action = 'store_true', help = "Treat all the SIDs also as GIDs (i.e., form one-sequnce groups)")
 input_alternatives.add_argument('-nOg', '--non_overlapping_groups', dest = 'non_overlapping_groups', action = 'store_true',
                                 help = "The group mapping contains only non-overlapping groups (GIDs in the annotation files must not be provided)")
-input_controls.add_argument('-n', '--site_names', dest = 'site_names', action = 'store_true', help = "Read in site names in addition")
+input_controls.add_argument('-n', '--site_names', dest = 'site_names', action = 'store_true', help = "Read in SCE names in addition")
 input_controls.add_argument('-t', '--time_unit', dest = 'time_unit', default = 'none', choices = ['none', 'sec', 'min', 'hour', 'day'], help = "Time unit if the sequences are time series (default: 'none')")
 input_controls.add_argument('-a1r', '--anno1file_resolve', dest = 'anno1_resolve_overlaps', default = 'all', choices = ['all', 'first', 'last', 'merge'],
                             help = "Resolve overlaps within the first annotation: leave {all} sites, only the {first} one, only the {last} one, or {merge} overlapping sites (default: 'all')")
@@ -94,15 +94,15 @@ output_files_extra.add_argument('-ou', '--outfile_union', dest = 'output_file_un
 output_files_extra.add_argument('-oi', '--outfile_intersection', dest = 'output_file_intersection', type = str, default = '', help = 'Output TSV file with the intersection of two annotations')
 output_files_extra.add_argument('-oc1', '--outfile_complement_1', dest = 'output_file_complement1', type = str, default = '', help = 'Output TSV file with the complement of the first annotation')
 output_files_extra.add_argument('-oc2', '--outfile_complement_2', dest = 'output_file_complement2', type = str, default = '', help = 'Output TSV file with the complement of the second annotation')
-output_files_extra.add_argument('-ore1', '--outfile_rel_enrichment_1', dest = 'output_file_re1', type = str, default = '', help = 'Output TSV file with the sites of relative enriched in the first annotation')
-output_files_extra.add_argument('-ore2', '--outfile_rel_enrichment_2', dest = 'output_file_re2', type = str, default = '', help = 'Output TSV file with the sites of relative enriched in the second annotation')
+output_files_extra.add_argument('-ore1', '--outfile_rel_enrichment_1', dest = 'output_file_re1', type = str, default = '', help = 'Output TSV file with the sites of relative enrichement in the first annotation')
+output_files_extra.add_argument('-ore2', '--outfile_rel_enrichment_2', dest = 'output_file_re2', type = str, default = '', help = 'Output TSV file with the sites of relative enrichement in the second annotation')
 output_controls.add_argument('-osd', '--outfile_sites_diff', dest = 'site_difference', default = 'all', choices = ['all', 'discrepant', 'unmatched'],
                              help = "Limit site-wise statics to {unmatched} or {discrepant} sites (default: 'all')")
 output_controls.add_argument('-c', '--clean', dest = 'clean', action = 'store_true', help = 'Produce cleaned output TSV (without comments and averaged values)')
 output_controls.add_argument('-sort', '--sort_output', dest = 'sort_output', action = 'store_true', help = 'Sort the main output table by GID')
 output_controls.add_argument('-sum', '--calculate_sums', dest = 'calculate_sums', action = 'store_true', help = 'Calculate sums in addition to averages for counts')
 other_options.add_argument('-preparse', '--preparse_mapfile', dest = 'preparse_group_map', action = 'store_true', help = 'Preparse the group mapping before parsing the sequence length database')
-other_options.add_argument('-w', '--warnings', dest = 'warnings', type = int, default = 1, help = 'Warnings level: 0 - no warnings, 1- standard')
+other_options.add_argument('-w', '--warning_level', dest = 'warnings', type = int, default = 1, help = 'Warnings level: 0 - no warnings, 1- standard')
 other_options.add_argument('-q', '--quiet', dest = 'quiet', action = 'store_true', help = 'Quiet run: do not print progress')
 arg_processor = ArgumentProcessor(arg_parser)
 opt = arg_processor.prepare_input_options()
