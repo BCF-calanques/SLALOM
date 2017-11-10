@@ -44,7 +44,7 @@ class GenBankMethods:
             return int(linecache.getline(fname, 1).split()[2])
         except:
             error('Cannor read the sequence length from the GenBank file "{}"'.format(fname))
-    def gen_record(file_obj, detect_strand, detect_frame):
+    def gen_record(file_obj, detect_strand, detect_frame, seq_length = 0):
         """Generator for getting the next CDS record from a GenBank file preparsed as TSV"""
         expect_name = False
         line_idx = -1
@@ -70,7 +70,11 @@ class GenBankMethods:
                     begin, end = fields[1].split('..')
                     begin = begin.strip('<')
                     end = end.strip('>')
-                    frame = ('{:+d}'.format(int(end) % 3 + (1 if strand_forward else -3)) if detect_frame else ('+' if strand_forward else '-')) if detect_strand else '*'
+                    if detect_frame:
+                        reminder = (int(begin) if strand_forward else (seq_length - int(end) + 1)) % 3
+                        if reminder == 0:
+                            reminder = 3
+                    frame = ('{:+d}'.format(reminder * (1 if strand_forward else -1)) if detect_frame else ('+' if strand_forward else '-')) if detect_strand else '*'
                     expect_name = True
             except (IndexError, ValueError):
                 error('Error while parsing the line {} of the file "{}". The format is not GenBank'.format(line_idx + 1, file_obj.name))
@@ -99,7 +103,7 @@ class BEDMethods:
                     seq_len_db[SID + sign + frame] = seq_length
             else:
                 seq_len_db[SID + sign] = seq_length
-    def gen_record(file_obj, detect_strand, detect_frame, site_names):
+    def gen_record(file_obj, detect_strand, detect_frame, site_names, seq_len_map = None):
         """Generator for getting the next record from a BED file converted according to the user request and file structure"""
         for line_idx, line in enumerate(file_obj):
             line = line.strip('\r\n')
@@ -112,7 +116,16 @@ class BEDMethods:
                     strand = fields[5]
                     if strand not in ('+', '-'):
                         error('Error while parsing the line {} of the file "{}". The strand must be eithe \'+\' or \'-\''.format(line_idx + 1, file_obj.name))
-                    SID += '{:+d}'.format(int(end) % 3 + (1 if strand == '+' else -3)) if detect_frame else strand
+                    if detect_frame:
+                        if strand == '+':
+                            begin_idx = int(fields[1])
+                        else:
+                            end_res = int(fields[2])
+                            seq_length = seq_len_map[SID + '+1']
+                        reminder = ((int(begin_idx) if strand_forward else (seq_length - int(end_res))) + 1) % 3
+                        if reminder == 0:
+                            reminder = 3
+                    SID += '{:+d}'.format(reminder * (1 if strand == '+' else -1)) if detect_frame else strand
                 yield line_idx, '{}\t{}\t{}{}'.format(SID, fields[1], fields[2], ('\t' + fields[3]) if site_names else '')
             except IndexError:
                 errot('Error while parsing the line {} of the file "{}". Not enough columns'.format(line_idx + 1, file_obj.name))
@@ -376,9 +389,9 @@ class CSVParser:
             line_generator = enumerate(ifile)
             if opt_prefix.startswith('a'):
                 if self.opt.genbank:
-                    line_generator = GenBankMethods.gen_record(ifile, self.opt.detect_strand, self.opt.detect_frame)
+                    line_generator = GenBankMethods.gen_record(ifile, self.opt.detect_strand, self.opt.detect_frame, self.auto_seq_len)
                 elif self.opt.bed:
-                    line_generator = BEDMethods.gen_record(ifile, self.opt.detect_strand, self.opt.detect_frame, self.opt.site_names)
+                    line_generator = BEDMethods.gen_record(ifile, self.opt.detect_strand, self.opt.detect_frame, self.opt.site_names, self.input_data.seq_len)
             for line_idx, line in line_generator:
                 try:
                     values = itemgetter(*column_indices)(file_field.findall(line.strip('\n')))
