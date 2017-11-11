@@ -190,6 +190,7 @@ class ArgumentValidator:
         if self.opt.detect_strand:
             self.opt.sequences_as_groups = True
         self.opt.grouped = self.opt.group_map or self.opt.sequences_as_groups
+        self.opt.circular = True if self.opt.end_overflow_policy == 'circular' else False
     def validate_file_paths(self):
         """Method to check for validity of given input and output file paths"""
         if (self.opt.seq_len == 0) and (not self.opt.series_start) and (not os.path.isfile(self.opt.len_db)):
@@ -250,11 +251,11 @@ class ArgumentValidator:
                 self._set_file_control_option_value(key, value)
     def validate_delimiters(self):
         """Method to check for validity the delimiters for the input files"""
-        regex = re.compile('''^[ \t,;.:/]$''')
+        regex = re.compile('''^[ \t,;.:/]?$''')
         for key in ('-sd', '-md', '-a1d', '-a2d'):
             value = self._get_file_control_option_value(key)
             if not regex.match(value):
-                error("Invalid value for the option '{}'. Expected a character from the set ' \t,;.:/'".format(key))
+                error("Invalid value for the option '{}'. Expected a character from the set ' \t,;.:/' or empty string".format(key))
     def validate_numerical_options_boundaries(self):
         """Method to check if numerical option values lie in correct boundaries"""
         for key in ('-sh', '-mh', '-a1h', '-a2h'):
@@ -338,6 +339,12 @@ class ArgumentValidator:
             error('Strand/frame detection is supported only in a simplified GenBank or BED mode')
         if self.opt.group_map and (self.opt.genbank or self.opt.bed):
             error('Group mapping files are not supported in simplified (GenBank or BED) modes')
+        if self.opt.circular and (self.opt.predictor_nature != 'neutral'):
+            error('Lagging or leading predictor nature is not compatible with circular sequences')
+        if self.opt.circular and (self.opt.time_unit != 'none'):
+            error('Time series cannot be circular')
+        if self.opt.circular and ((self.opt.anno1_resolve_overlaps in ('first', 'last')) or (self.opt.anno2_resolve_overlaps in ('first', 'last'))):
+            error("For circular sequences, only the following choices for overlap resolving are supported: 'all', 'merge'")
 
 class ArgumentProcessor:
     """Class to coordinate command line argument parsing"""
@@ -368,7 +375,7 @@ class CSVParser:
     field_regex_quoted = '''((?:[^{0}"']|"[^"]*(?:"|$)|'[^']*(?:'|$))+|(?={0}{0})|(?={0}$)|(?=^{0}))'''
     field_regex_simple = '(?:[^{0}]+|(?={0}{0})|(?={0}$)|(?=^{0}))'
     quote_compiled = re.compile('''['"]''')
-    int_regex = re.compile('^[+-]?\d*$')
+    int_regex = re.compile('^[+-]?\d+$')
     pos_int_regex = re.compile('^\+?[1-9]\d*$')
     time_formats_compiled = [re.compile(x) for x in ('^\d\d/\d\d/\d{4} \d\d:\d\d:\d\d$', '^\d\d/\d\d/\d{4} \d\d:\d\d$', '^\d\d\.\d\d\.\d{4} \d\d:\d\d:\d\d$', '^\d\d\.\d\d\.\d{4} \d\d:\d\d$')]
     time_formats = ['%m/%d/%Y %H:%M:%S', '%m/%d/%Y %H:%M', '%d.%m.%Y %H:%M:%S', '%d.%m.%Y %H:%M']
@@ -381,6 +388,8 @@ class CSVParser:
         column_indices = tuple(int(x) - 1 for x in getattr(self.opt, opt_prefix + '_columns').split(','))
         filename = getattr(self.opt, opt_prefix)
         delimiter = getattr(self.opt, opt_prefix + '_delimiter')
+        collapse_spaces = True if not delimiter else False
+        delimiter = delimiter if delimiter else ' '
         quotes_as_escaped = getattr(self.opt, opt_prefix + '_quotes')
         file_field = re.compile(getattr(CSVParser, 'field_regex_simple' if quotes_as_escaped else 'field_regex_quoted').format(delimiter))
         with open(filename, 'r') as ifile:
@@ -393,6 +402,8 @@ class CSVParser:
                 elif self.opt.bed:
                     line_generator = BEDMethods.gen_record(ifile, self.opt.detect_strand, self.opt.detect_frame, self.opt.site_names, self.input_data.seq_len)
             for line_idx, line in line_generator:
+                if collapse_spaces:
+                    line = re.sub(' +', ' ', line).strip()
                 try:
                     values = itemgetter(*column_indices)(file_field.findall(line.strip('\n')))
                 except IndexError:
@@ -539,7 +550,7 @@ class CSVParser:
                         print('Warning: SID "{}" does not belong to the group "{}" in the group mapping. The annotation record is ignored'.format(SID_, GID_))
                     return
                 if not self.global_state.time_unit_seconds:
-                    if (not self.int_regex.search(begin)) and (not self.int_regex.search(end)):
+                    if (not self.int_regex.search(begin)) or (not self.int_regex.search(end)):
                         raise RuntimeError('Site begin and end position must be integers')
                     begin_ = int(begin)
                     end_ = int(end)
@@ -550,26 +561,35 @@ class CSVParser:
                     end_ = self._duration_in_units(self.input_data.time_series_starts[SID_], interval[1])
                 begin_ += getattr(self.opt, opt_prefix + '_begin_shift')
                 end_ += getattr(self.opt, opt_prefix + '_end_shift')
-                if begin_ < 1:
-                    if self.opt.end_overflow_policy == 'error':
-                        raise RuntimeError('Site begin position must be positive')
-                    elif self.opt.end_overflow_policy == 'trim':
-                        if end_ < 1:
+                if self.opt.circular:
+                    if end_ - begin_ >= self.input_data.seq_len[SID_]:
+                        raise RuntimeError('Site length cannot exceed the sequence length')
+                    if begin_ > end_:
+                        raise RuntimeError('Site begin position cannot exceed the end position. For circular sequences, end positions exceeding the sequence length should be used')
+                    if (begin_ < 1) or (end > self.input_data.seq_len[SID_]):
+                        begin_ = begin_ % self.input_data.seq_len[SID_]
+                        end_ = end_ % self.input_data.seq_len[SID_] + self.input_data.seq_len[SID_]
+                else:
+                    if begin_ < 1:
+                        if self.opt.end_overflow_policy == 'forbid':
+                            raise RuntimeError('Site begin position must be positive')
+                        elif self.opt.end_overflow_policy == 'trim':
+                            if end_ < 1:
+                                return
+                            begin_ = 1
+                        elif self.opt.end_overflow_policy == 'ignore':
                             return
-                        begin_ = 1
-                    elif self.opt.end_overflow_policy == 'ignore':
-                        return
-                if begin_ > end_:
-                    raise RuntimeError('Site begin position cannot exceed the end position')
-                if end_ > self.input_data.seq_len[SID_]:
-                    if self.opt.end_overflow_policy == 'error':
-                        raise RuntimeError('Site end position cannot exceed the sequence length')
-                    elif self.opt.end_overflow_policy == 'trim':
-                        end_ = self.input_data.seq_len[SID_]
-                        if begin_ > end_:
+                    if begin_ > end_:
+                        raise RuntimeError('Site begin position cannot exceed the end position')
+                    if end_ > self.input_data.seq_len[SID_]:
+                        if self.opt.end_overflow_policy == 'forbid':
+                            raise RuntimeError('Site end position cannot exceed the sequence length')
+                        elif self.opt.end_overflow_policy == 'trim':
+                            end_ = self.input_data.seq_len[SID_]
+                            if begin_ > end_:
+                                return
+                        elif self.opt.end_overflow_policy == 'ignore':
                             return
-                    elif self.opt.end_overflow_policy == 'ignore':
-                        return
                 no = int(opt_prefix[-1])
                 self.input_data.sites[no][GID_][SID_].append([begin_, end_])
                 if self.opt.site_names:
@@ -732,10 +752,10 @@ class BasicSequenceCalculator:
     def _in_re2(self, idx):
         """Method to check if given symbol is in the annotation of relative enrichment for the first annotation"""
         raise NotImplementedError("Method '_in_re2' is not implemented")
-    def _write_site(self, file_handler, begin_idx, idx):
+    def _write_site(self, file_handler, begin_idx, end_res):
         """Auxiliary method to write a site to an output annotation file"""
         group = (self.current_seq.GID + '\t' if self.current_seq.GID else '')
-        file_handler.write('{}{}\t{}\t{}\n'.format(group, self.current_seq.SID, begin_idx + 1, idx))
+        file_handler.write('{}{}\t{}\t{}\n'.format(group, self.current_seq.SID, begin_idx + 1, end_res))
     def write_to_files(self, file_handlers):
         """Method to write the required output annotations"""
         for type_ in FileHandlers.output_file_types:
@@ -747,16 +767,22 @@ class BasicSequenceCalculator:
             else:
                 in_site = False
                 begin_idx = None
+                last_end_res = None
                 for idx in range(self.current_seq.length):
-                    if getattr(self, '_in_' + type_)(idx):
+                    idx_ = (idx - self.current_seq.length) if (self.opt.circular and (idx >= self.current_seq.length)) else idx
+                    if getattr(self, '_in_' + type_)(idx_):
                         if not in_site:
                             in_site = True
                             begin_idx = idx
                     elif in_site:
+                        if self.opt.circular and (begin_idx == 0) and getattr(self, '_in_' + type_)(self.current_seq.length - 1):
+                            in_site = False
+                            last_end_res = idx + self.current_seq.length
+                            continue
                         self._write_site(file_handler, begin_idx, idx)
                         in_site = False
                 if in_site:
-                    self._write_site(file_handler, begin_idx, self.current_seq.length)
+                    self._write_site(file_handler, begin_idx, last_end_res if last_end_res else self.current_seq.length)
     def calculate_residue_wise(self):
         """Method to calculate residue-wise measures for a given sequence"""
         raise NotImplementedError("Method 'calculate_residue_wise' is not implemented")
@@ -767,6 +793,7 @@ class BasicBooleanSequenceCalculator(BasicSequenceCalculator):
     """Class for calculating basic Boolean measures and write into files required output annotations in a particular sequence"""
     def __init__(self, global_state, opt, current_seq):
         BasicSequenceCalculator.__init__(self, global_state, opt, current_seq)
+        self.seq_length = current_seq.length
         self.seq = np.zeros(shape = current_seq.length, dtype = 'i1')
         self.results = BasicBooleanMeasures()
         self._classify_symbols()
@@ -774,9 +801,13 @@ class BasicBooleanSequenceCalculator(BasicSequenceCalculator):
         """Method to classify symbols in the sequence by their occurrence in the annotations"""
         for site in self.current_seq.sites[1]:
             for idx in range(site[0] - 1, site[1]):
+                if self.opt.circular and (idx >= self.seq_length):
+                    idx -= self.seq_length
                 self.seq[idx] = 1
         for site in self.current_seq.sites[2]:
             for idx in range(site[0] - 1, site[1]):
+                if self.opt.circular and (idx >= self.seq_length):
+                    idx -= self.seq_length
                 if self.seq[idx] == 0:
                     self.seq[idx] = 2
                 elif self.seq[idx] == 1:
@@ -793,6 +824,9 @@ class BasicBooleanSequenceCalculator(BasicSequenceCalculator):
     def _in_complement2(self, idx):
         """Method to check if given symbol is in the Bollean annotation complement of the second"""
         return True if self.seq[idx] == 1 else False
+    def _get_overlapped_symbols_raw(self, begin, end, begin_, end_):
+        """Method to calculate number of shared symbols between two sites in the same sequence, without further restrictions"""
+        return max(min(end - begin_, end_ - begin, end - begin, end_ - begin_) + 1, 0)
     def _get_overlapped_symbols(self, site, site_, annotation_idx):
         """Method to calculate number of shared symbols between two sites in the same sequence"""
         if self.opt.predictor_nature != 'neutral':
@@ -801,7 +835,12 @@ class BasicBooleanSequenceCalculator(BasicSequenceCalculator):
                     return 0
             elif site_[0] > site[0]:
                 return 0
-        return max(min(site[1] - site_[0], site_[1] - site[0], site[1] - site[0], site_[1] - site_[0]) + 1, 0)
+        elif self.opt.circular:
+            alt_0 = self._get_overlapped_symbols_raw(site[0], site[1], site_[0], site_[1]) 
+            alt_1 = self._get_overlapped_symbols_raw(site[0], site[1], site_[0] + self.seq_length, site_[1] + self.seq_length) if site[1] > self.seq_length else 0
+            alt_2 = self._get_overlapped_symbols_raw(site[0] + self.seq_length, site[1] + self.seq_length, site_[0], site_[1]) if site_[1] > self.seq_length else 0
+            return max(alt_0, alt_1, alt_2)
+        return self._get_overlapped_symbols_raw(site[0], site[1], site_[0], site_[1])
     def _get_site_length(self, site, site_):
         """Method to calculate the effective site length according to the input settings"""
         if self.opt.overlap_apply == 'shortest':
@@ -858,14 +897,12 @@ class BasicBooleanSequenceCalculator(BasicSequenceCalculator):
         if self.opt.overlap_apply in ('shortest', 'longest', 'current'):
             for i in (1, 2):
                 j = 3 - i
-                last_end = 0
                 for site in self.current_seq.sites[i]:
-                    site_effective_begin = site[0] if self.opt.gross else max(site[0], last_end + 1)
-                    self.results.site_len[i] += site[1] - site_effective_begin + 1
-                    last_end = site[1]
+                    if self.opt.gross:
+                        self.results.site_len[i] += site[1] - site[0] + 1
                     found_match = False
                     for site_ in self.current_seq.sites[j]:
-                        if site_[0] > site[1]:
+                        if (not self.opt.circular) and (site_[0] > site[1]):
                             break
                         overlapped_symbols = self._get_overlapped_symbols(site, site_, i)
                         site_length_effective = self._get_site_length(site, site_)
@@ -914,7 +951,10 @@ class BasicBooleanSequenceCalculator(BasicSequenceCalculator):
         elif self.opt.overlap_apply == 'patched':
             for i in (1, 2):
                 for site in self.current_seq.sites[i]:
-                    matched_symbols = np.sum(self.seq[site[0] - 1: site[1]] == 3)
+                    if self.opt.circular and (site[1] > self.seq_length):
+                        matched_symbols = np.sum(self.seq[site[0] - 1: ] == 3) + np.sum(self.seq[: site[1] - self.seq_length] == 3)
+                    else:
+                        matched_symbols = np.sum(self.seq[site[0] - 1: site[1]] == 3)
                     site_length = site[1] - site[0] + 1
                     found_match = self._check_overlap_sufficiency(matched_symbols, site_length)
                     if found_match:
@@ -947,6 +987,8 @@ class BasicBooleanSequenceCalculator(BasicSequenceCalculator):
         else:
             error('Unknown overlap apply method')
         for i in (1, 2):
+            if not self.opt.gross:
+                self.results.site_len[i] = int(np.sum(self.seq == i) + np.sum(self.seq == 3))
             sites_n = self.results.site_m[i] + self.results.site_nm[i]
             if sites_n == 0:
                 if detailed_file_h:
@@ -976,6 +1018,7 @@ class BasicEnrichmentSequenceCalculator(BasicSequenceCalculator):
         BasicSequenceCalculator.__init__(self, global_state, opt, current_seq)
         self.n = self.opt.enrichment_count
         bytes_required = self._estimate_required_precison()
+        self.seq_length = current_seq.length
         self.seq = [None] + [np.zeros(shape = current_seq.length, dtype = 'i' + str(bytes_required)) for x in range(2)]
         self.results = BasicEnrichmentMeasures()
         self._count_occurrences()
@@ -984,6 +1027,8 @@ class BasicEnrichmentSequenceCalculator(BasicSequenceCalculator):
         for i in (1, 2):
             for site in self.current_seq.sites[i]:
                 for idx in range(site[0] - 1, site[1]):
+                    if self.opt.circular and (idx >= self.seq_length):
+                        idx -= self.seq_length
                     self.seq[i][idx] += 1
     def _in_union(self, idx):
         """Method to check if given symbol is in the enrichment annotation union"""
@@ -1330,16 +1375,6 @@ class CalculationCoordinator():
             group_performance_measures = PerformanceMeasures(self.opt.enrichment_count, self.opt.benchmark, self.opt.gross)
             PerformanceCalculator(group_counts, group_performance_measures).calculate_performance_measures()
         return group_performance_measures, group_counts_, seq_length_sum
-#    def process_database_basic_measures(self, basic_measures, groups_n):
-#        """Method to calculate all relevant performance measures from the basic measures for the whole dataset under dataset-wise averaging"""
-#        self.basic_measures = basic_measures
-#        self._calculate_performance_measures()
-#        for measure in self.performance_measures.name_map:
-#            if not measure.force_avg:
-#                continue
-#            content = getattr(self.performance_measures, measure.var_name)
-#            content[0] = content[0] / groups_n 
-#        return self.performance_measures
 
 class DataProcessor:
     """Class to calculate and save into corresponding files performance measures as well as output annotations for each group and the whole database"""

@@ -7,7 +7,7 @@ if __name__ != '__main__':
 
 #Parsing input arguments
 usage = '%(prog)s [options] [-s SEQ_LEN_DB_FILE] [-m GROUP_MAP_FILE] -a1 ANNO_1_FILE -a2 ANNO_2_FILE -o OUTPUT_FILE'
-version = '%(prog)s SLALOM version 2.0.2b'
+version = '%(prog)s SLALOM version 2.1.0b'
 arg_parser = argparse.ArgumentParser(usage = usage, allow_abbrev = False, formatter_class=CustomHelpFormatter)
 arg_parser._optionals.title = None
 arg_parser.description = 'Welcome to SLALOM (StatisticaL Analysis of Locus Overlap Method)! Abbreviations: SID = sequence identifier; GID = group identifier'
@@ -82,8 +82,8 @@ input_controls.add_argument('-a2r', '--anno2file_resolve', dest = 'anno2_resolve
                             help = "Resolve overlaps within the second annotation: leave {all} sites, only the {first} one, only the {last} one, or {merge} overlapping sites (default: 'all')")
 input_controls.add_argument('-a2bs', '--anno2file_begin_shift', dest = 'anno2_begin_shift', type = int, default = 0, help = "Constant shift of site begin positions in the second annotation (symbols)")
 input_controls.add_argument('-a2es', '--anno2file_end_shift', dest = 'anno2_end_shift', type = int, default = 0, help = "Constant shift of site end positions in the second annotation (symbols)")
-input_controls.add_argument('-e', '--end_overflowpolicy', dest = 'end_overflow_policy', default = 'forbid', choices = ['forbid', 'trim', 'ignore'],
-                            help = "Policy on overflowing site ends: {forbid}, {ignore} site or {trim} it (default: 'error')")
+input_controls.add_argument('-e', '--end_overflowpolicy', dest = 'end_overflow_policy', default = 'forbid', choices = ['forbid', 'trim', 'ignore', 'circular'],
+                            help = "Policy on overflowing site ends: {forbid}, {ignore} site, {trim} it or treat sequences as {circular} (default: 'forbid')")
 input_controls.add_argument('-z', '--zero_for_na', dest = 'na_zeros', action = 'store_true', help = 'Treat NA values as zeros while calculating averages')
 input_controls.add_argument('-min', '--min_group_size', dest = 'min_group_size', type = int, default = 1, help = 'Minimal size (number of sequences) of a group')
 input_controls.add_argument('-max', '--max_group_size', dest = 'max_group_size', type = int, default = 0, help = 'Maximal size (number of sequences) of a group (0=infinity)')
