@@ -339,6 +339,8 @@ class ArgumentValidator:
             error('Strand/frame detection is supported only in a simplified GenBank or BED mode')
         if self.opt.group_map and (self.opt.genbank or self.opt.bed):
             error('Group mapping files are not supported in simplified (GenBank or BED) modes')
+        if (self.opt.genbank or self.opt.bed) and (self.opt.anno1_delimiter + self.opt.anno2_delimiter + self.opt.group_map_delimiter + self.opt.seq_len_delimiter != '\t\t\t\t'):
+            error('Delimiter cannot be changed in simplified (GenBank or BED) modes')
         if self.opt.circular and (self.opt.predictor_nature != 'neutral'):
             error('Lagging or leading predictor nature is not compatible with circular sequences')
         if self.opt.circular and (self.opt.time_unit != 'none'):
@@ -566,7 +568,7 @@ class CSVParser:
                         raise RuntimeError('Site length cannot exceed the sequence length')
                     if begin_ > end_:
                         raise RuntimeError('Site begin position cannot exceed the end position. For circular sequences, end positions exceeding the sequence length should be used')
-                    if (begin_ < 1) or (end > self.input_data.seq_len[SID_]):
+                    if (begin_ < 1) or (end_ > self.input_data.seq_len[SID_]):
                         begin_ = begin_ % self.input_data.seq_len[SID_]
                         end_ = end_ % self.input_data.seq_len[SID_] + self.input_data.seq_len[SID_]
                 else:
@@ -933,7 +935,10 @@ class BasicBooleanSequenceCalculator(BasicSequenceCalculator):
                                 message += 'no sufficient overlap found'
                             detailed_file_h.write(message + os.linesep)
                         if site_file_h is not None:
-                            if self.opt.site_difference == 'unmatched':
+                            if self.opt.site_difference == 'matched':
+                                if not found_match:
+                                    continue
+                            elif self.opt.site_difference == 'unmatched':
                                 if found_match:
                                     continue
                             elif self.opt.site_difference == 'discrepant':
@@ -1322,7 +1327,8 @@ class CalculationCoordinator():
         args = (self.global_state, self.opt, current_seq)
         if self.file_handlers.detailed is not None:
             ending = '' if current_seq.length == 1 else 's'
-            self.file_handlers.detailed.write('{}Information on the sequence "{}" (length {} symbol{}):'.format(self.global_state.indent_seq, current_seq.SID, current_seq.length, ending) + os.linesep)
+            seq_description = 'sequence "{}"'.format(current_seq.SID) if current_seq.SID else 'unnamed sequence'
+            self.file_handlers.detailed.write('{}Information on the {} (length {} symbol{}):'.format(self.global_state.indent_seq, seq_description, current_seq.length, ending) + os.linesep)
         basic_sequence_calculator = BasicBooleanSequenceCalculator(*args) if self.opt.enrichment_count == 0 else BasicEnrichmentSequenceCalculator(*args)
         basic_sequence_calculator.calculate_residue_wise(self.file_handlers.detailed)
         if self.opt.enrichment_count == 0:

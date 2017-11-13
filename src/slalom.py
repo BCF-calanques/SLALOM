@@ -7,7 +7,7 @@ if __name__ != '__main__':
 
 #Parsing input arguments
 usage = '%(prog)s [options] [-s SEQ_LEN_DB_FILE] [-m GROUP_MAP_FILE] -a1 ANNO_1_FILE -a2 ANNO_2_FILE -o OUTPUT_FILE'
-version = '%(prog)s SLALOM version 2.1.0b'
+version = '%(prog)s SLALOM version 2.1.1b'
 arg_parser = argparse.ArgumentParser(usage = usage, allow_abbrev = False, formatter_class=CustomHelpFormatter)
 arg_parser._optionals.title = None
 arg_parser.description = 'Welcome to SLALOM (StatisticaL Analysis of Locus Overlap Method)! Abbreviations: SID = sequence identifier; GID = group identifier'
@@ -82,7 +82,7 @@ input_controls.add_argument('-a2r', '--anno2file_resolve', dest = 'anno2_resolve
                             help = "Resolve overlaps within the second annotation: leave {all} sites, only the {first} one, only the {last} one, or {merge} overlapping sites (default: 'all')")
 input_controls.add_argument('-a2bs', '--anno2file_begin_shift', dest = 'anno2_begin_shift', type = int, default = 0, help = "Constant shift of site begin positions in the second annotation (symbols)")
 input_controls.add_argument('-a2es', '--anno2file_end_shift', dest = 'anno2_end_shift', type = int, default = 0, help = "Constant shift of site end positions in the second annotation (symbols)")
-input_controls.add_argument('-e', '--end_overflowpolicy', dest = 'end_overflow_policy', default = 'forbid', choices = ['forbid', 'trim', 'ignore', 'circular'],
+input_controls.add_argument('-e', '--end_overflow_policy', dest = 'end_overflow_policy', default = 'forbid', choices = ['forbid', 'trim', 'ignore', 'circular'],
                             help = "Policy on overflowing site ends: {forbid}, {ignore} site, {trim} it or treat sequences as {circular} (default: 'forbid')")
 input_controls.add_argument('-z', '--zero_for_na', dest = 'na_zeros', action = 'store_true', help = 'Treat NA values as zeros while calculating averages')
 input_controls.add_argument('-min', '--min_group_size', dest = 'min_group_size', type = int, default = 1, help = 'Minimal size (number of sequences) of a group')
@@ -96,8 +96,8 @@ output_files_extra.add_argument('-oc1', '--outfile_complement_1', dest = 'output
 output_files_extra.add_argument('-oc2', '--outfile_complement_2', dest = 'output_file_complement2', type = str, default = '', help = 'Output TSV file with the complement of the second annotation')
 output_files_extra.add_argument('-ore1', '--outfile_rel_enrichment_1', dest = 'output_file_re1', type = str, default = '', help = 'Output TSV file with the sites of relative enrichement in the first annotation')
 output_files_extra.add_argument('-ore2', '--outfile_rel_enrichment_2', dest = 'output_file_re2', type = str, default = '', help = 'Output TSV file with the sites of relative enrichement in the second annotation')
-output_controls.add_argument('-osd', '--outfile_sites_diff', dest = 'site_difference', default = 'all', choices = ['all', 'discrepant', 'unmatched'],
-                             help = "Limit site-wise statics to {unmatched} or {discrepant} sites (default: 'all')")
+output_controls.add_argument('-osd', '--outfile_sites_diff', dest = 'site_difference', default = 'all', choices = ['all', 'matched', 'unmatched', 'discrepant'],
+                             help = "Limit site-wise statics to {matched}, {unmatched} or {discrepant} sites (default: 'all')")
 output_controls.add_argument('-c', '--clean', dest = 'clean', action = 'store_true', help = 'Produce cleaned output TSV (without comments and averaged values)')
 output_controls.add_argument('-sort', '--sort_output', dest = 'sort_output', action = 'store_true', help = 'Sort the main output table by GID')
 output_controls.add_argument('-sum', '--calculate_sums', dest = 'calculate_sums', action = 'store_true', help = 'Calculate sums in addition to averages for counts')

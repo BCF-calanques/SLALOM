@@ -1,3 +1,4 @@
-2	6
-20	22
-37	47
+seqA	21	40	geneA
+seqA	61	85	geneB
+seqA	101	130	geneC
+seqB	16	30	geneD
