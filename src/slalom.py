@@ -7,7 +7,7 @@ if __name__ != '__main__':
 
 #Parsing input arguments
 usage = '%(prog)s [options] [-s SEQ_LEN_DB_FILE] [-m GROUP_MAP_FILE] -a1 ANNO_1_FILE -a2 ANNO_2_FILE -o OUTPUT_FILE'
-version = '%(prog)s SLALOM version 2.1.2b'
+version = '%(prog)s SLALOM version 2.1.3b'
 arg_parser = argparse.ArgumentParser(usage = usage, allow_abbrev = False, formatter_class=CustomHelpFormatter)
 arg_parser._optionals.title = None
 arg_parser.description = 'Welcome to SLALOM (StatisticaL Analysis of Locus Overlap Method)! Abbreviations: SID = sequence identifier; GID = group identifier'
@@ -17,7 +17,7 @@ simplified_mode = arg_parser.add_argument_group('Simplified modes').add_mutually
 operating_mode = arg_parser.add_argument_group('Operating mode setup')
 core_controls = arg_parser.add_argument_group('Core algorithm controls')
 input_format = arg_parser.add_argument_group('----- Advanced options -----\n\nInput file format')
-input_alternatives = arg_parser.add_argument_group('Input alternatives (reduce the need in files/columns for simplified cases)')
+input_alternatives = arg_parser.add_argument_group('Alternative input options')
 input_controls = arg_parser.add_argument_group('Input controls')
 output_files_extra = arg_parser.add_argument_group('Additional output files')
 output_controls = arg_parser.add_argument_group('Output controls')
