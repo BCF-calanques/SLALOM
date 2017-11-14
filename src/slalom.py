@@ -7,7 +7,7 @@ if __name__ != '__main__':
 
 #Parsing input arguments
 usage = '%(prog)s [options] [-s SEQ_LEN_DB_FILE] [-m GROUP_MAP_FILE] -a1 ANNO_1_FILE -a2 ANNO_2_FILE -o OUTPUT_FILE'
-version = '%(prog)s SLALOM version 2.1.1b'
+version = '%(prog)s SLALOM version 2.1.2b'
 arg_parser = argparse.ArgumentParser(usage = usage, allow_abbrev = False, formatter_class=CustomHelpFormatter)
 arg_parser._optionals.title = None
 arg_parser.description = 'Welcome to SLALOM (StatisticaL Analysis of Locus Overlap Method)! Abbreviations: SID = sequence identifier; GID = group identifier'

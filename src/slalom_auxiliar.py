@@ -153,6 +153,12 @@ class ArgumentValidator:
             error('The key "{}" does not exist'.format(key))
         dest = '{}_{}'.format(self.prefixes[regex_search.group(1)], self.suffixes[regex_search.group(2)])
         setattr(self.opt, dest, value)
+    def preliminary_validate(self):
+        """Method for ensuring the default values of parameters to be set internally"""
+        if (self.opt.genbank or self.opt.bed) and (self.opt.anno1_columns + self.opt.anno2_columns != ''):
+            error('Column numbers in the annotation files cannot be changed in simplified (GenBank or BED) modes')
+        if self.opt.genbank and ((getattr(self.opt, self.misc_keys['-l']) > 0) or (self.opt.len_db)):
+            error('Sequence lenght must not be provided in the simplified GenBank mode. This information will be read from the annotation files')
     def preliminary_set_the_internal_parameters(self):
         """Method for setting the iternal options relevant for the simplified modes on the basis of user input"""
         self.opt.detect_strand = True if self.opt.detect != 'none' else False
@@ -160,8 +166,6 @@ class ArgumentValidator:
     def set_the_simplified_mode(self):
         """Method for settting the relevant default options for a simplified mode"""
         if self.opt.genbank:
-            if getattr(self.opt, self.misc_keys['-l']) > 0:
-                error('Sequence lenght must not be provided in the simplified GenBank mode')
             seqlen = GenBankMethods.get_seq_len(self.opt.anno1)
             if seqlen != GenBankMethods.get_seq_len(self.opt.anno1):
                 error('Sequence lenght between the two GenBank files does not match')
@@ -339,8 +343,10 @@ class ArgumentValidator:
             error('Strand/frame detection is supported only in a simplified GenBank or BED mode')
         if self.opt.group_map and (self.opt.genbank or self.opt.bed):
             error('Group mapping files are not supported in simplified (GenBank or BED) modes')
-        if (self.opt.genbank or self.opt.bed) and (self.opt.anno1_delimiter + self.opt.anno2_delimiter + self.opt.group_map_delimiter + self.opt.seq_len_delimiter != '\t\t\t\t'):
-            error('Delimiter cannot be changed in simplified (GenBank or BED) modes')
+        if (self.opt.genbank or self.opt.bed) and (self.opt.anno1_delimiter + self.opt.anno2_delimiter != '\t\t'):
+            error('Delimiter in the annotation files cannot be changed in simplified (GenBank or BED) modes')
+        if (self.opt.genbank or self.opt.bed) and (self.opt.anno1_headers + self.opt.anno2_headers != 0):
+            error('Number of header rows in the annotation files cannot be changed in simplified (GenBank or BED) modes')
         if self.opt.circular and (self.opt.predictor_nature != 'neutral'):
             error('Lagging or leading predictor nature is not compatible with circular sequences')
         if self.opt.circular and (self.opt.time_unit != 'none'):
