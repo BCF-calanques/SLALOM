@@ -239,7 +239,8 @@ class PerformanceMeasures:
         MeasureFullType('SitePCV', 'site_pcv', 'Site-wise positive correlation value', 'float', mode_Bs = True, mode_Bg = True, mode_Eq = True, mode_Bn = True)
     )
     def __init__(self, enrichment_count, benchmark, gross):
-        self.name_map = []_OUT        for measure in PerformanceMeasures.name_map_full:
+        self.name_map = []
+        for measure in PerformanceMeasures.name_map_full:
             if enrichment_count and (not measure.mode_En):
                 continue
             if (not enrichment_count) and (not (measure.mode_Bs or measure.mode_Bg)):
