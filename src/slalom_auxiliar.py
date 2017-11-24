@@ -1,3 +1,19 @@
+"""SLALOM (StatisticaL Analysis of Locus Overlap Method)
+Copyright (C) 2017  Roman Prytuliak
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see https://www.gnu.org/licenses/."""
+
 import os, sys, re, math, datetime, time, copy, linecache, argparse
 import numpy as np
 from operator import itemgetter
@@ -199,8 +215,8 @@ class ArgumentValidator:
         """Method to check for validity of given input and output file paths"""
         if (self.opt.seq_len == 0) and (not self.opt.series_start) and (not os.path.isfile(self.opt.len_db)):
             if not self.opt.len_db:
-                error('Neither input file with the database of sequence lengths nor the common sequence length is not provided')
-            error('Input file with the database of sequence lengths does not exist')
+                error('Neither input file with the sequence length table nor the common sequence length is not provided')
+            error('The sequence length table file does not exist')
         if self.opt.group_map:
             if not os.path.isfile(self.opt.group_map):
                 error('Input file with the sequence group mapping does not exist')
@@ -288,7 +304,7 @@ class ArgumentValidator:
         if present and (not getattr(self.opt, 'enrichment_count')):
             error('Relative enrichment output files can be written only in enrichment mode')
         if self.opt.len_db and (self.opt.seq_len > 0):
-            error('Positive lengrh of all sequence and the file with the database of sequence lengths cannot be provided simultaneously')
+            error('Positive lengrh of all sequence and the file with the sequence length table cannot be provided simultaneously')
         if (self.opt.len_db == 0) and self.opt.single_sequence:
             error('If single sequence is analyzed, its length must be provided as the corresponding argument')
         if ((self.opt.anno1_resolve_overlaps != 'all') or (self.opt.anno2_resolve_overlaps != 'all')) and getattr(self.opt, 'enrichment_count'):
@@ -309,7 +325,7 @@ class ArgumentValidator:
             error('Start and finish of all sequences must be provided together')
         if (not self.opt.len_db) and self.opt.group_map and (not self.opt.preparse_group_map):
             if self.opt.warnings:
-                print('The sequence length database is not provided. The preparsing of the group mapping is activated automatically')
+                print('The sequence length table file is not provided. The preparsing of the group mapping is activated automatically')
         if self.opt.single_sequence and self.opt.group_map:
             error('Group mapping is not compatible with the option of processing single sequence')
         if self.opt.sequences_as_groups and (self.opt.min_group_size > 1):
@@ -321,7 +337,7 @@ class ArgumentValidator:
         if (self.opt.anno1_all_sequences and self.opt.anno1_all_groups) or (self.opt.anno2_all_sequences and self.opt.anno2_all_groups):
             error('The options of treating all sites as belonging to all sequences and all groups are not compatible for the same annotation')
         if (not self.opt.len_db) and (not self.opt.group_map) and (self.opt.anno1_all_sequences or self.opt.anno2_all_sequences):
-            error('For the options of treating all sites as belonging to all sequences either the length database or the group mapping is required')
+            error('For the options of treating all sites as belonging to all sequences either the sequence length table or the group mapping is required')
         if (self.opt.anno1_all_groups or self.opt.anno2_all_groups) and self.opt.sequences_as_groups:
             error('The option of treating of sequences as groups is not compatible with an option of treating all sites as belonging to all groups')
         if (self.opt.anno1_all_groups or self.opt.anno2_all_groups) and (not self.opt.group_map):
@@ -442,7 +458,7 @@ class CSVParser:
             if not recognized:
                 raise RuntimeError('Time format was not recognized. Supported formats: "mm/dd/yyyy HH:MM[:SS]" and "dd.mm.yyyy HH:MM[:SS]"')
     def _save_seq_len_db_record(self, values, not_first_to_check):
-        """Method to save a sequence length database record"""
+        """Method to save a sequence length table record"""
         def _save_record():
             """Closure to write the values to the corresponding dictionaries"""
             nonlocal seq_length
@@ -485,9 +501,9 @@ class CSVParser:
         if '"' in SID:
             raise RuntimeError('An SID cannot contain double quotes')
         if self.input_data.seq_len[SID + (('+1' if self.opt.detect_frame else '+') if self.opt.detect_strand else '')] != seq_length:
-            raise RuntimeError('Inconsistency in the sequence length database. Different length/duration values for a duplicating SID "{}".'.format(SID))
+            raise RuntimeError('Inconsistency in the sequence length table. Different length/duration values for a duplicating SID "{}".'.format(SID))
         if self.global_state.time_unit_seconds and (self.input_data.time_series_starts[SID] != interval[0]):
-            raise RuntimeError('Inconsistency in the sequence length database. Different start values for a duplicating SID "{}".'.format(SID))
+            raise RuntimeError('Inconsistency in the sequence length table. Different start values for a duplicating SID "{}".'.format(SID))
     def _save_group_map_record(self, values, preliminary = False):
         """Method to save a group mapping record"""
         SID, GID = values
@@ -501,7 +517,7 @@ class CSVParser:
                 self.input_data.time_series_starts[SID] = self.auto_series_start
         elif SID not in self.input_data.seq_len.keys():
             if self.opt.warnings:
-                print('Warning: SID "{}" is not the sequence length database. The group mapping record is ignored'.format(SID))
+                print('Warning: SID "{}" is not the sequence length table. The group mapping record is ignored'.format(SID))
             return
         if SID not in self.input_data.group_map[GID]:
             self.input_data.group_map[GID].append(SID)
@@ -543,7 +559,7 @@ class CSVParser:
                         if self.global_state.time_unit_seconds:
                             self.input_data.time_series_starts[SID_] = self.auto_series_start
                     elif self.opt.warnings:
-                        print('Warning: SID "{}" is not in the sequence length database. The annotation record is ignored'.format(SID_))
+                        print('Warning: SID "{}" is not in the sequence length table. The annotation record is ignored'.format(SID_))
                         return
                 if self.opt.sequences_as_groups and self.opt.len_db:
                     self.input_data.group_map[GID_] = [SID_]
@@ -650,7 +666,7 @@ class CSVParser:
                             sites_new.append([new_begin, last_end])
                     sites[: ] = sites_new       
     def calc_and_set_auto_seq_len(self):
-        """Method to calculate the sequence length and, if applicable, the start of time series, on the basis of the input parameters  if the database is not provided"""
+        """Method to calculate the sequence length and, if applicable, the start of time series, on the basis of the input parameters if the sequence length table is not provided"""
         if self.opt.len_db:
             self.auto_seq_len = None
         else:
@@ -665,23 +681,23 @@ class CSVParser:
                 self.auto_seq_len = self._duration_in_units(interval[0], interval[1])
                 self.auto_series_start = interval[0]
     def parse_sequence_length_db(self):
-        """Method to parse the input sequence length database file"""
+        """Method to parse the input sequence length table file"""
         self._parse_input_file('len_db')
         if self.opt.preparse_group_map:
             for SID in list(self.input_data.seq_len.keys()):
                 if self.input_data.seq_len[SID] is None:
                     del self.input_data.seq_len[SID]
                     if self.opt.warnings:
-                        print('Warning: SID "{}" is not the sequence length database. The group mapping record is ignored'.format(SID))
+                        print('Warning: SID "{}" is not the sequence length table. The group mapping record is ignored'.format(SID))
             self.input_data.group_map = DefaultOrderedDict(list)
         if not self.input_data.seq_len:
-            error('The sequence length database does not contain any SIDs that can be retained')
+            error('The sequence length table does not contain any SIDs that can be retained')
         if not self.opt.quiet:
-            print('The sequence length database has been read from "{}"'.format(getattr(self.opt, 'len_db')))
+            print('The sequence length table has been read from "{}"'.format(getattr(self.opt, 'len_db')))
     def parse_group_map(self, preliminary = False):
         """Method to parse the input group map file"""
         if (not preliminary) and (not self.input_data.seq_len):
-            error('The sequence length database must be parsed before the group mapping')
+            error('The sequence length table must be parsed before the group mapping')
         if not self.opt.group_map:
             if not self.opt.sequences_as_groups:
                 self.input_data.group_map[''].extend(self.input_data.seq_len.keys())
@@ -698,13 +714,13 @@ class CSVParser:
                 if (len(SID_list) < self.opt.min_group_size) or (self.opt.max_group_size and (len(SID_list) > self.opt.max_group_size)):
                     del self.input_data.group_map[GID]
         if not self.input_data.group_map:
-            error('The sequence length database does not contain any SIDs that can be retained')
+            error('The sequence length table does not contain any SIDs that can be retained')
         if not self.opt.quiet:
             print('The group mapping has been{} read from "{}"'.format(' preliminary' if self.auto_seq_len is None else '', getattr(self.opt, 'group_map')))
     def parse_annotations(self):
         """Method to parse the input annotation files"""
         if (self.opt.len_db and (not self.input_data.seq_len)) or ((not self.input_data.group_map) and (not self.opt.sequences_as_groups)):
-            error('The annotation files must be parsed after the sequence length database and the group mapping')
+            error('The annotation files must be parsed after the sequence length table and the group mapping')
         self._parse_input_file('anno1')
         if not self.opt.quiet:
             print('The first annotation has been read from "{}"'.format(getattr(self.opt, 'anno1')))
@@ -1101,35 +1117,35 @@ class PerformanceCalculator:
         self.basic_measures = basic_measures
         self.performance_measures = performance_maeasures
     def _calc_p1(self):
-        """Method to calculate share of symbols present in the first annotation"""
+        """Method to calculate fraction of symbols present in the first annotation"""
         p1 = self.basic_measures.pp + self.basic_measures.pa
         self.performance_measures.set_value('p1', p1)
     def _calc_p2(self):
-        """Method to calculate share of symbols present in the second annotation"""
+        """Method to calculate fraction of symbols present in the second annotation"""
         p2 = self.basic_measures.pp + self.basic_measures.ap
         self.performance_measures.set_value('p2', p2)
     def _calc_pp(self):
-        """Method to copy share of symbols present in both annotations"""
+        """Method to copy fraction of symbols present in both annotations"""
         pp = self.basic_measures.pp
         self.performance_measures.set_value('pp', pp)
     def _calc_pp1(self):
-        """Method to copy share of symbols gross present in the first annotation that are also present in the second"""
+        """Method to copy fraction of symbols gross present in the first annotation that are also present in the second"""
         pp1 = self.basic_measures.pp_[1]
         self.performance_measures.set_value('pp1', pp1)
     def _calc_pp2(self):
-        """Method to copy share of symbols gross present in the second annotation that are also present in the first"""
+        """Method to copy fraction of symbols gross present in the second annotation that are also present in the first"""
         pp2 = self.basic_measures.pp_[2]
         self.performance_measures.set_value('pp2', pp2)
     def _calc_pa(self):
-        """Method to copy share of symbols present exclusively in the first annotation"""
+        """Method to copy fraction of symbols present exclusively in the first annotation"""
         pa = self.basic_measures.pa
         self.performance_measures.set_value('pa', pa)
     def _calc_ap(self):
-        """Method to copy share of symbols present exclusively in the second annotation"""
+        """Method to copy fraction of symbols present exclusively in the second annotation"""
         ap = self.basic_measures.ap
         self.performance_measures.set_value('ap', ap)
     def _calc_aa(self):
-        """Method to copy share of symbols absent in both annotation"""
+        """Method to copy fraction of symbols absent in both annotation"""
         aa = self.basic_measures.aa
         self.performance_measures.set_value('aa', aa)
     def _calc_rc2(self):
@@ -1232,27 +1248,27 @@ class PerformanceCalculator:
         site_pcv = temp / denominator if denominator > 0.0 else float('nan')
         self.performance_measures.set_value('site_pcv', site_pcv)
     def _calc_e_p1(self):
-        """Method to copy share of symbols enriched in the first annotation"""
+        """Method to copy fraction of symbols enriched in the first annotation"""
         e_p1 = self.basic_measures.e[1]
         self.performance_measures.set_value('e_p1', e_p1)
     def _calc_e_p2(self):
-        """Method to copy share of symbols enriched in the second annotation"""
+        """Method to copy fraction of symbols enriched in the second annotation"""
         e_p2 = self.basic_measures.e[2]
         self.performance_measures.set_value('e_p2', e_p2)
     def _calc_e_pp(self):
-        """Method to copy share of symbols enriched in both annotations"""
+        """Method to copy fraction of symbols enriched in both annotations"""
         e_pp = self.basic_measures.ee
         self.performance_measures.set_value('e_pp', e_pp)
     def _calc_e_pa(self):
-        """Method to calculate share of symbols enriched exclusively in the first annotation"""
+        """Method to calculate fraction of symbols enriched exclusively in the first annotation"""
         e_pa = self.basic_measures.e[1] - self.basic_measures.ee
         self.performance_measures.set_value('e_pa', e_pa)
     def _calc_e_ap(self):
-        """Method to calculate share of symbols enriched exclusively in the second annotation"""
+        """Method to calculate fraction of symbols enriched exclusively in the second annotation"""
         e_ap = self.basic_measures.e[2] - self.basic_measures.ee
         self.performance_measures.set_value('e_ap', e_ap)
     def _calc_e_aa(self):
-        """Method to copy share of symbols enriched in neither annotation"""
+        """Method to copy fraction of symbols enriched in neither annotation"""
         e_aa = self.basic_measures.ne
         self.performance_measures.set_value('e_aa', e_aa)
     def _calc_e_rc2(self):
@@ -1389,7 +1405,7 @@ class CalculationCoordinator():
         return group_performance_measures, group_counts_, seq_length_sum
 
 class DataProcessor:
-    """Class to calculate and save into corresponding files performance measures as well as output annotations for each group and the whole database"""
+    """Class to calculate and save into corresponding files performance measures as well as output annotations for each group and the whole dataset"""
     def __init__(self, opt, global_state, input_data):
         self.opt = opt
         self.input_data = input_data

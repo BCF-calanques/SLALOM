@@ -1,3 +1,19 @@
+"""SLALOM (StatisticaL Analysis of Locus Overlap Method)
+Copyright (C) 2017  Roman Prytuliak
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see https://www.gnu.org/licenses/."""
+
 import math, copy
 from collections import defaultdict, OrderedDict, Callable
 
@@ -164,35 +180,35 @@ class MeasureFullType(MeasureType):
         self.mode_Bn = mode_Bn 
 
 class PerformanceMeasures:
-    """Class to hold performance measures for a grpup or database-wide"""
+    """Class to hold performance measures for a grpup or dataset-wide"""
     name_map_full = (
         MeasureFullType('Nseq', 'seq_n', 'Number of sequences', 'int', mode_Bs = True, mode_Bg = True, mode_En = True, mode_Eq = True, mode_Bn = True, force_avg = True),
-        MeasureFullType('Rel.', 'p1', 'Share of relevant symbols (=TP+FN)', 'float', mode_Bs = True, mode_En = True, mode_Bn = True, basic = True),
-        MeasureFullType('Sel.', 'p2', 'Share of selected/predicted symbols (=TP+FP)', 'float', mode_Bs = True, mode_En = True, mode_Bn = True, basic = True),
-        MeasureFullType('P1', 'p1', 'Share of symbols present in the first annotation', 'float', mode_Bs = True, mode_Eq = True, basic = True),
-        MeasureFullType('P2', 'p2', 'Share of symbols present in the second annotation', 'float', mode_Bs = True, mode_Eq = True, basic = True),
-        MeasureFullType('E1', 'p1', 'Share of symbols enriched in the first annotation', 'float', mode_En = True, mode_Eq = True, basic = True),
-        MeasureFullType('E2', 'p2', 'Share of symbols enriched in the second annotation', 'float', mode_En = True, mode_Eq = True, basic = True),
-        MeasureFullType('TP', 'pp', 'Share of true positive symbols', 'float', mode_Bs = True, mode_En = True, mode_Bn = True, basic = True),
+        MeasureFullType('Rel.', 'p1', 'Fraction of relevant symbols (=TP+FN)', 'float', mode_Bs = True, mode_En = True, mode_Bn = True, basic = True),
+        MeasureFullType('Sel.', 'p2', 'Fraction of selected/predicted symbols (=TP+FP)', 'float', mode_Bs = True, mode_En = True, mode_Bn = True, basic = True),
+        MeasureFullType('P1', 'p1', 'Fraction of symbols present in the first annotation', 'float', mode_Bs = True, mode_Eq = True, basic = True),
+        MeasureFullType('P2', 'p2', 'Fraction of symbols present in the second annotation', 'float', mode_Bs = True, mode_Eq = True, basic = True),
+        MeasureFullType('E1', 'p1', 'Fraction of symbols enriched in the first annotation', 'float', mode_En = True, mode_Eq = True, basic = True),
+        MeasureFullType('E2', 'p2', 'Fraction of symbols enriched in the second annotation', 'float', mode_En = True, mode_Eq = True, basic = True),
+        MeasureFullType('TP', 'pp', 'Fraction of true positive symbols', 'float', mode_Bs = True, mode_En = True, mode_Bn = True, basic = True),
         MeasureFullType('TP_b', 'pp1', 'Ratio of true positive symbols gross in the benchmark to the overall symbol count', 'float', mode_Bg = True, mode_Bn = True, basic = True),
         MeasureFullType('TP_p', 'pp2', 'Ratio of true positive symbols gross in the prediction to the overall symbol count', 'float', mode_Bg = True, mode_Bn = True, basic = True),
-        MeasureFullType('PP', 'pp', 'Share of symbols present in both annotations', 'float', mode_Bs = True, mode_Eq = True, basic = True),
+        MeasureFullType('PP', 'pp', 'Fraction of symbols present in both annotations', 'float', mode_Bs = True, mode_Eq = True, basic = True),
         MeasureFullType('P1P2', 'pp1', 'Ratio of symbols gross present in the first annotation that are also present in the second to the overall symbol count', 'float', mode_Bg = True, mode_Eq = True, basic = True),
         MeasureFullType('P2P1', 'pp2', 'Ratio of symbols gross present in the second annotation that are also present in the first to the overall symbol count', 'float', mode_Bg = True, mode_Eq = True, basic = True),
-        MeasureFullType('FP', 'ap', 'Share of false positive symbols', 'float', mode_Bs = True, mode_En = True, mode_Bn = True, basic = True),
+        MeasureFullType('FP', 'ap', 'Fraction of false positive symbols', 'float', mode_Bs = True, mode_En = True, mode_Bn = True, basic = True),
         MeasureFullType('FP', 'ap', 'Ratio of false positive symbols gross to the overall symbol count', 'float', mode_Bg = True, mode_Bn = True, basic = True),
-        MeasureFullType('AP', 'ap', 'Share of symbols absent in the first annotation but present in the second', 'float', mode_Bs = True, mode_Eq = True, basic = True),
+        MeasureFullType('AP', 'ap', 'Fraction of symbols absent in the first annotation but present in the second', 'float', mode_Bs = True, mode_Eq = True, basic = True),
         MeasureFullType('AP', 'ap', 'Ratio of symbols gross absent in the first annotation but present in the second to the overall symbol count', 'float', mode_Bg = True, mode_Eq = True, basic = True),
-        MeasureFullType('FN', 'pa', 'Share of false negative symbols', 'float', mode_Bs = True, mode_En = True, mode_Bn = True, basic = True),
+        MeasureFullType('FN', 'pa', 'Fraction of false negative symbols', 'float', mode_Bs = True, mode_En = True, mode_Bn = True, basic = True),
         MeasureFullType('FN', 'pa', 'Ratio of false negative symbols gross to the overall symbol count', 'float', mode_Bg = True, mode_Bn = True, basic = True),
-        MeasureFullType('PA', 'pa', 'Share of symbols present in the first annotation but absent in the second', 'float', mode_Bs = True, mode_Eq = True, basic = True),
+        MeasureFullType('PA', 'pa', 'Fraction of symbols present in the first annotation but absent in the second', 'float', mode_Bs = True, mode_Eq = True, basic = True),
         MeasureFullType('PA', 'pa', 'Ratio of symbols gross present in the first annotation but absent in the second to the overall symbol count', 'float', mode_Bg = True, mode_Eq = True, basic = True),
-        MeasureFullType('TN', 'aa', 'Share of true negative symbols', 'float', mode_Bs = True, mode_Bg = True, mode_En = True, mode_Bn = True, basic = True),
-        MeasureFullType('AA', 'aa', 'Share of symbols absent in both annotations', 'float', mode_Bs = True, mode_Bg = True, mode_Eq = True, basic = True),
-        MeasureFullType('EE', 'pp', 'Share of symbols enriched in both annotations', 'float', mode_En = True, mode_Eq = True, basic = True),
-        MeasureFullType('XE1', 'pa', 'Share of symbols enriched exclusively in the first annotation', 'float', mode_En = True, mode_Eq = True, basic = True),
-        MeasureFullType('XE2', 'ap', 'Share of symbols enriched exclusively in the second annotation', 'float', mode_En = True, mode_Eq = True, basic = True),
-        MeasureFullType('NE', 'aa', 'Share of symbols enriched in neither annotation', 'float', mode_En = True, mode_Eq = True),
+        MeasureFullType('TN', 'aa', 'Fraction of true negative symbols', 'float', mode_Bs = True, mode_Bg = True, mode_En = True, mode_Bn = True, basic = True),
+        MeasureFullType('AA', 'aa', 'Fraction of symbols absent in both annotations', 'float', mode_Bs = True, mode_Bg = True, mode_Eq = True, basic = True),
+        MeasureFullType('EE', 'pp', 'Fraction of symbols enriched in both annotations', 'float', mode_En = True, mode_Eq = True, basic = True),
+        MeasureFullType('XE1', 'pa', 'Fraction of symbols enriched exclusively in the first annotation', 'float', mode_En = True, mode_Eq = True, basic = True),
+        MeasureFullType('XE2', 'ap', 'Fraction of symbols enriched exclusively in the second annotation', 'float', mode_En = True, mode_Eq = True, basic = True),
+        MeasureFullType('NE', 'aa', 'Fraction of symbols enriched in neither annotation', 'float', mode_En = True, mode_Eq = True),
         MeasureFullType('TPR', 'rc2', 'Symbol-wise true positive rate (a.k.a. sensitivity or recall)', 'float', mode_Bs = True, mode_Bg = True, mode_En = True, mode_Bn = True),
         MeasureFullType('PPV', 'pr2', 'Symbol-wise positive predictive value (a.k.a. precision)', 'float', mode_Bs = True, mode_Bg = True, mode_En = True, mode_Bn = True),
         MeasureFullType('SPC', 'sp2', 'Symbol-wise specificity', 'float', mode_Bs = True, mode_Bg = True, mode_En = True, mode_Bn = True),
@@ -223,8 +239,7 @@ class PerformanceMeasures:
         MeasureFullType('SitePCV', 'site_pcv', 'Site-wise positive correlation value', 'float', mode_Bs = True, mode_Bg = True, mode_Eq = True, mode_Bn = True)
     )
     def __init__(self, enrichment_count, benchmark, gross):
-        self.name_map = []
-        for measure in PerformanceMeasures.name_map_full:
+        self.name_map = []_OUT        for measure in PerformanceMeasures.name_map_full:
             if enrichment_count and (not measure.mode_En):
                 continue
             if (not enrichment_count) and (not (measure.mode_Bs or measure.mode_Bg)):

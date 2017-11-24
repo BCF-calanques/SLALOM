@@ -1,3 +1,19 @@
+"""SLALOM (StatisticaL Analysis of Locus Overlap Method)
+Copyright (C) 2017  Roman Prytuliak
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see https://www.gnu.org/licenses/."""
+
 import sys, argparse
 from slalom_structures import GlobalState, EnrichmentCountType
 from slalom_auxiliar import CustomHelpFormatter, ArgumentProcessor, CSVParser, InputFileProcessor, DataProcessor
@@ -7,7 +23,7 @@ if __name__ != '__main__':
 
 #Parsing input arguments
 usage = '%(prog)s [options] [-s SEQ_LEN_DB_FILE] [-m GROUP_MAP_FILE] -a1 ANNO_1_FILE -a2 ANNO_2_FILE -o OUTPUT_FILE'
-version = '%(prog)s SLALOM version 2.1.3b'
+version = '%(prog)s SLALOM version 2.1.4b'
 arg_parser = argparse.ArgumentParser(usage = usage, allow_abbrev = False, formatter_class=CustomHelpFormatter)
 arg_parser._optionals.title = None
 arg_parser.description = 'Welcome to SLALOM (StatisticaL Analysis of Locus Overlap Method)! Abbreviations: SID = sequence identifier; GID = group identifier'
@@ -22,7 +38,7 @@ input_controls = arg_parser.add_argument_group('Input controls')
 output_files_extra = arg_parser.add_argument_group('Additional output files')
 output_controls = arg_parser.add_argument_group('Output controls')
 other_options = arg_parser.add_argument_group('Other options')
-main_files.add_argument('-s', '--seqlenfile', metavar = 'SEQ_LEN_DB_FILE', dest = 'len_db', type = str, default = '', help = 'Input file with the database of sequence lengths')
+main_files.add_argument('-s', '--seqlenfile', metavar = 'SEQ_LEN_DB_FILE', dest = 'len_db', type = str, default = '', help = 'Input file with the table of sequence lengths')
 main_files.add_argument('-m', '--mapfile', metavar = 'GROUP_MAP_FILE', dest = 'group_map', type = str, default = '', help = 'Input file with the sequence group mapping')
 main_files.add_argument('-a1', '--anno1file', metavar = 'ANNO_1_FILE', dest = 'anno1', type = str, required = True, help = 'Input file with the first annotation')
 main_files.add_argument('-a2', '--anno2file', metavar = 'ANNO_2_FILE', dest = 'anno2', type = str, required = True, help = 'Input file with the second annotation')
@@ -42,11 +58,11 @@ core_controls.add_argument('-On', '--overlap_nature', dest = 'predictor_nature',
 core_controls.add_argument('-a', '--averaging', dest = 'averaging', default = 'group', choices = ['sequence', 'group', 'dataset'],
                            help = "Averaging of basic measures: {sequence}-wise (macro-macro), {group}-wise (micro-macro) or {dataset}-wise (micro-micro) (default: 'group')")
 core_controls.add_argument('-A', '--adjust_for_seqlen', dest = 'len_adjust', action = 'store_true', help = "Adjust residue counts for the sequence length (default: plain-sum the counts)")
-input_format.add_argument('-sd', '--seqlenfile_delim', dest = 'len_db_delimiter', type = str, default = '\t', help = 'Delimiter in the length database file (default: <tab>)')
-input_format.add_argument('-sh', '--seqlenfile_headers', dest = 'len_db_headers', type = int, default = 0, help = 'Number of header lines to discard in the length database file')
+input_format.add_argument('-sd', '--seqlenfile_delim', dest = 'len_db_delimiter', type = str, default = '\t', help = 'Delimiter in the sequensc length table (default: <tab>)')
+input_format.add_argument('-sh', '--seqlenfile_headers', dest = 'len_db_headers', type = int, default = 0, help = 'Number of header lines to discard in the sequence length table')
 input_format.add_argument('-sc', '--seqlenfile_colnumbers', dest = 'len_db_columns', type = str, default  = '',
-                          help = "Column numbers (starting from 1) with SID and sequence length (for time series: SID and start and finish time points) in the length database file (default: '1,2' or '1,2,3')")
-input_format.add_argument('-sq', '--seqlenfile_quotes', dest = 'len_db_quotes', action = 'store_true', help = "Read in quotes from the length database file (default: ignore quotes)")
+                          help = "Column numbers (starting from 1) with SID and sequence length (for time series: SID and start and finish time points) in the sequence length table (default: '1,2' or '1,2,3')")
+input_format.add_argument('-sq', '--seqlenfile_quotes', dest = 'len_db_quotes', action = 'store_true', help = "Read in quotes from the sequence length table (default: ignore quotes)")
 input_format.add_argument('-md', '--mapfile_delim', dest = 'group_map_delimiter', type = str, default = '\t', help = 'Delimiter in the group map file (default: <tab>)')
 input_format.add_argument('-mh', '--mapfile_headers', dest = 'group_map_headers', type = int, default = 0, help = 'Number of header lines to discard in the group map file')
 input_format.add_argument('-mc', '--mapfile_colnumbers', dest = 'group_map_columns', type = str, default  = '1,2', help = "Column numbers (starting from 1) with SID and GID in the group map file (default: '1,2')")
@@ -61,7 +77,7 @@ input_format.add_argument('-a2h', '--anno2file_headers', dest = 'anno2_headers',
 input_format.add_argument('-a2c', '--anno2file_colnumbers', dest = 'anno2_columns', type = str, default  = '',
                           help = "Column numbers (starting from 1) with start position, end position, SID, GID, site name (skip those not provided) in the second annotation file (default: '3,4,1,2,5' skip-adjusted)")
 input_format.add_argument('-a2q', '--anno2file_quotes', dest = 'anno2_quotes', action = 'store_true', help = "Read in quotes from the second annotation file (default: ignore quotes)")
-input_alternatives.add_argument('-l', '--seqlen_value', dest = 'seq_len', type = int, default = 0, help = 'Length of all the sequences; sequence length database must not be provided')
+input_alternatives.add_argument('-l', '--seqlen_value', dest = 'seq_len', type = int, default = 0, help = 'Length of all the sequences; sequence length table file must not be provided')
 input_alternatives.add_argument('-ss', '--single_sequence', dest = 'single_sequence', action = 'store_true', help = "Process single sequence; SIDs must not be provided")
 input_alternatives.add_argument('-ts', '--timeseries_start', dest = 'series_start', type = str, default = '', help = 'Start of all the time series')
 input_alternatives.add_argument('-tf', '--timeseries_finish', dest = 'series_finish', type = str, default = '', help = 'Finish of all the time series')
@@ -101,7 +117,7 @@ output_controls.add_argument('-osd', '--outfile_sites_diff', dest = 'site_differ
 output_controls.add_argument('-c', '--clean', dest = 'clean', action = 'store_true', help = 'Produce cleaned output TSV (without comments and averaged values)')
 output_controls.add_argument('-sort', '--sort_output', dest = 'sort_output', action = 'store_true', help = 'Sort the main output table by GID')
 output_controls.add_argument('-sum', '--calculate_sums', dest = 'calculate_sums', action = 'store_true', help = 'Calculate sums in addition to averages for counts')
-other_options.add_argument('-preparse', '--preparse_mapfile', dest = 'preparse_group_map', action = 'store_true', help = 'Preparse the group mapping before parsing the sequence length database')
+other_options.add_argument('-preparse', '--preparse_mapfile', dest = 'preparse_group_map', action = 'store_true', help = 'Preparse the group mapping before parsing the sequence length table file')
 other_options.add_argument('-w', '--warning_level', dest = 'warnings', type = int, default = 1, help = 'Warnings level: 0 - no warnings, 1- standard')
 other_options.add_argument('-q', '--quiet', dest = 'quiet', action = 'store_true', help = 'Quiet run: do not print progress')
 arg_processor = ArgumentProcessor(arg_parser)
